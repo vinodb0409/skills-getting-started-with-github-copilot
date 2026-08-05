@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="participants">
               <strong>Participants</strong>
               <ul class="participants-list">
-                ${details.participants.map(p => `<li>${p}</li>`).join("")}
+                ${details.participants.map(p => `<li data-email="${p}"><span class="participant-email">${p}</span><button class="remove-participant" data-activity="${encodeURIComponent(name)}" title="Remove participant">✕</button></li>`).join("")}
               </ul>
             </div>
           `
@@ -97,4 +97,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initialize app
   fetchActivities();
+
+  // Handle participant removal (event delegation)
+  activitiesList.addEventListener("click", async (e) => {
+    const btn = e.target.closest('.remove-participant');
+    if (!btn) return;
+    const li = btn.closest('li');
+    const email = li?.dataset?.email;
+    const activity = decodeURIComponent(btn.dataset.activity || '');
+    if (!email || !activity) return;
+    if (!confirm(`Remove ${email} from ${activity}?`)) return;
+    try {
+      const resp = await fetch(`/activities/${encodeURIComponent(activity)}/participants?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+      const result = await resp.json();
+      if (resp.ok) {
+        messageDiv.textContent = result.message || `Removed ${email}`;
+        messageDiv.className = 'success';
+        // Refresh activities to update counts and lists
+        fetchActivities();
+      } else {
+        messageDiv.textContent = result.detail || 'Failed to remove participant';
+        messageDiv.className = 'error';
+      }
+      messageDiv.classList.remove('hidden');
+      setTimeout(() => messageDiv.classList.add('hidden'), 5000);
+    } catch (error) {
+      messageDiv.textContent = 'Failed to remove participant.';
+      messageDiv.className = 'error';
+      messageDiv.classList.remove('hidden');
+      console.error('Error removing participant:', error);
+    }
+  });
 });
